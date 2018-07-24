@@ -1,0 +1,68 @@
+map[
+Id:docker.service
+Wants:[network-online.target]
+StopWhenUnneeded:false
+SubState:running
+PropagatesReloadTo:[]
+SourcePath: RebootArgument: ConsistsOf:[docker.socket]
+JoinsNamespaceOf:[]
+InactiveEnterTimestamp:0
+RequisiteOf:[]
+JobTimeoutUSec:18446744073709551615
+Triggers:[]
+ConflictedBy:[]
+Requisite:[]
+ConditionTimestampMonotonic:33563346
+Following: StartLimitBurst:3
+FragmentPath:/lib/systemd/system/docker.service
+TriggeredBy:[docker.socket]
+ReloadPropagatedFrom:[]
+ActiveEnterTimestampMonotonic:34845075
+ActiveExitTimestamp:0
+PartOf:[]
+RefuseManualStop:false
+RequiredBy:[]
+Conflicts:[shutdown.target]
+IgnoreOnIsolate:false
+UnitFilePreset:enabled
+ActiveState:active
+ConditionResult:true
+Description:Docker Application Container Engine
+BindsTo:[]
+CanStart:true
+OnFailure:[]
+CanIsolate:false
+ActiveEnterTimestamp:1530753004458633
+InactiveExitTimestamp:1530753003177373
+ActiveExitTimestampMonotonic:0
+StateChangeTimestampMonotonic:34845075
+StartLimitAction:none
+CanStop:true
+InactiveEnterTimestampMonotonic:0
+DefaultDependencies:true
+DropInPaths:[]
+InactiveExitTimestampMonotonic:33563815
+Asserts:[]
+JobTimeoutAction:none
+AssertResult:true
+UnitFileState:enabled
+Transient:false
+Before:[shutdown.target multi-user.target]
+ConditionTimestamp:1530753003176904
+OnFailureJobMode:replace
+StateChangeTimestamp:1530753004458633
+AllowIsolate:false Conditions:[]
+AssertTimestampMonotonic:33563346
+NeedDaemonReload:false
+JobTimeoutRebootArgument: RefuseManualStart:false
+RequiresMountsFor:[] Documentation:[https://docs.docker.com]
+After:[basic.target system.slice firewalld.service sysinit.target network-online.target systemd-journald.socket docker.socket]
+Requires:[docker.socket system.slice sysinit.target]
+CanReload:true
+Job:[0 /]
+AssertTimestamp:1530753003176904
+WantedBy:[multi-user.target]
+StartLimitInterval:60000000
+LoadState:loaded
+Names:[docker.service]
+LoadError:[ ] BoundBy:[]]
