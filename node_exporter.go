@@ -25,7 +25,6 @@ import (
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/node_exporter/collector"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"github.com/prometheus/node_exporter/monitor"
 	"github.com/prometheus/node_exporter/utils"
 	"os"
 )
@@ -114,8 +113,6 @@ func main() {
 	var (
 		listenAddress = kingpin.Flag("web.listen-address", "Address on which to expose metrics and web interface.").Default(":9100").String()
 		metricsPath   = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
-		MonitConfigPath = kingpin.Flag("monit-config-path", "monit config file path.").Default("/etc/monit.json").String()
-		enable_monit = kingpin.Flag("enable-monit", "enable monitor").Bool()
 		enable_ceph = kingpin.Flag("enable-ceph", "enable ceph collector").Bool()
 		exporterConfig = kingpin.Flag("exporter.config", "Path to ceph exporter config.").Default("/etc/ceph/exporter.yml").String()
 	)
@@ -127,18 +124,6 @@ func main() {
 
 	log.Infoln("Starting node_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
-
-	// monit handler
-	if *enable_monit == true {
-		monitCfg, err := monitor.EncodeFromFile(*MonitConfigPath)
-		if err != nil {
-			fmt.Println("MonitConfigPath: ", *MonitConfigPath)
-			log.Fatalf("Couldn't Parse monit config file: %s", err)
-			os.Exit(1)
-		}
-		go monitCfg.MainLoop()
-		http.HandleFunc("/monit_status", monitCfg.Status)
-	}
 
 	nc, err := collector.NewNodeCollector()
 	if *enable_ceph == true {
