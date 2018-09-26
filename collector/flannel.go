@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"github.com/coreos/go-systemd/dbus"
 	"github.com/prometheus/client_golang/prometheus"
+	"os/exec"
+	"bytes"
+	"strings"
 )
 
 func init() {
@@ -75,22 +78,22 @@ func (kube *flannelCollector) updateStatus(ch chan<- prometheus.Metric) {
 	}
 
 
-	//cmd := exec.Command("flanneld", "--version")
-	//var out bytes.Buffer
-	//cmd.Stderr = &out
-	//buildInfo := prometheus.NewGaugeVec(
-	//	prometheus.GaugeOpts{
-	//		Name: "flannel_version",
-	//		Help: "A metric with a constant '1' value labeled by Version",
-	//	},
-	//	[]string{"Version"},
-	//)
-	//err = cmd.Run()
-	//
-	//if err == nil {
-	//	version := strings.Trim(out.String(), "\n")
-	//	ch <- buildInfo.WithLabelValues(version)
-	//} else {
-	//	ch <- buildInfo.WithLabelValues("Unknow")
-	//}
+	cmd := exec.Command("flanneld", "--version")
+	var out bytes.Buffer
+	cmd.Stderr = &out
+	buildInfo := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "flannel_version",
+			Help: "A metric with a constant '1' value labeled by Version",
+		},
+		[]string{"Version"},
+	)
+	err = cmd.Run()
+
+	if err == nil {
+		version := strings.Trim(out.String(), "\n")
+		ch <- buildInfo.WithLabelValues(version)
+	} else {
+		ch <- buildInfo.WithLabelValues("Unknow")
+	}
 }
