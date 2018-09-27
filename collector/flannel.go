@@ -1,11 +1,11 @@
 package collector
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/coreos/go-systemd/dbus"
 	"github.com/prometheus/client_golang/prometheus"
 	"os/exec"
-	"bytes"
 	"strings"
 )
 
@@ -76,7 +76,6 @@ func (kube *flannelCollector) updateStatus(ch chan<- prometheus.Metric) {
 			prometheus.CounterValue,
 			1)
 	}
-
 
 	cmd := exec.Command("flanneld", "--version")
 	var out bytes.Buffer

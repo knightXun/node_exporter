@@ -1,11 +1,11 @@
 package collector
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/coreos/go-systemd/dbus"
 	"github.com/prometheus/client_golang/prometheus"
 	"os/exec"
-	"bytes"
 	"strings"
 )
 
@@ -89,7 +89,7 @@ func (kube *etcdCollector) updateStatus(ch chan<- prometheus.Metric) {
 	err = cmd.Run()
 
 	if err == nil {
-		version:= ""
+		version := ""
 		git := ""
 		goVersion := ""
 		goOs := ""
@@ -131,6 +131,6 @@ func (kube *etcdCollector) updateStatus(ch chan<- prometheus.Metric) {
 		}
 		ch <- buildInfo.WithLabelValues(version, git, goVersion, goOs)
 	} else {
-		ch <- buildInfo.WithLabelValues("Unknow", "Unknow", "Unknow","Unknow" )
+		ch <- buildInfo.WithLabelValues("Unknow", "Unknow", "Unknow", "Unknow")
 	}
 }

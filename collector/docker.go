@@ -1,11 +1,11 @@
 package collector
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/coreos/go-systemd/dbus"
 	"github.com/prometheus/client_golang/prometheus"
 	"os/exec"
-	"bytes"
 	"strings"
 )
 
@@ -85,14 +85,14 @@ func (kube *dockerCollector) updateStatus(ch chan<- prometheus.Metric) {
 		info := out.String()
 		lines := strings.Split(info, "\n")
 
-		clientVersion:= ""
+		clientVersion := ""
 		clientApiVersion := ""
 		clientGoVersion := ""
 		clientGitCommit := ""
 		clientBuilt := ""
 		clientOsArch := ""
 
-		serverVersion:= ""
+		serverVersion := ""
 		serverApiVersion := ""
 		serverGoVersion := ""
 		serverGitCommit := ""

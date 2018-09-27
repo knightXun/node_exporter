@@ -1,11 +1,11 @@
 package collector
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/coreos/go-systemd/dbus"
 	"github.com/prometheus/client_golang/prometheus"
 	"os/exec"
-	"bytes"
 )
 
 func init() {
@@ -74,7 +74,6 @@ func (kube *apiserverCollector) updateStatus(ch chan<- prometheus.Metric) {
 			prometheus.CounterValue,
 			1)
 	}
-
 
 	cmd := exec.Command("kube-apiserver", "--version")
 	var out bytes.Buffer
