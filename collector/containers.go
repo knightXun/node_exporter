@@ -1,24 +1,25 @@
 package collector
 
 import (
-	"fmt"
-	"time"
 	"encoding/json"
+	"fmt"
 	"io"
 	"regexp"
+	"time"
 
-	"gopkg.in/alecthomas/kingpin.v2"
 	dockerapi "github.com/docker/engine-api/client"
-	eventtypes "github.com/docker/engine-api/types/events"
 	"github.com/docker/engine-api/types"
-	"golang.org/x/net/context"
-	"github.com/prometheus/common/log"
+	eventtypes "github.com/docker/engine-api/types/events"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/log"
+	"golang.org/x/net/context"
+	"gopkg.in/alecthomas/kingpin.v2"
+	"strings"
 )
 
 var (
-	containersWhitelist  = kingpin.Flag("collector.containers.whitelist", "Regexp of docker containers to whitelist. Containers must both match whitelist and not match blacklist to be included.").Default(".+").String()
-	containersBlacklist  = kingpin.Flag("collector.containers.blacklist", "Regexp of docker containers units to blacklist. Containers must both match whitelist and not match blacklist to be included.").Default(".+\\.scope").String()
+	containersWhitelist = kingpin.Flag("collector.containers.whitelist", "Regexp of docker containers to whitelist. Containers must both match whitelist and not match blacklist to be included.").Default(".+").String()
+	containersBlacklist = kingpin.Flag("collector.containers.blacklist", "Regexp of docker containers units to blacklist. Containers must both match whitelist and not match blacklist to be included.").Default(".+\\.scope").String()
 )
 
 func init() {
@@ -26,11 +27,9 @@ func init() {
 }
 
 type containersCollector struct {
-	nRestartsDesc                 		*prometheus.Desc
-	nStopDesc 							*prometheus.Desc
-	nStartDesc                          *prometheus.Desc
-	containersWhitelistPattern          *regexp.Regexp
-	containersBlacklistPattern          *regexp.Regexp
+	nEventsDesc                *prometheus.Desc
+	containersWhitelistPattern *regexp.Regexp
+	containersBlacklistPattern *regexp.Regexp
 }
 
 var defaultTimeout = time.Second * 5
@@ -38,27 +37,17 @@ var defaultTimeout = time.Second * 5
 func NewContainersCollector() (Collector, error) {
 	const subsystem = "containers"
 
-	nRestartsDesc := prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, subsystem, "container_restart_total"),
-		"container count of Restart triggers", []string{"state"}, nil)
-
-	nStopDesc := prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, subsystem, "container_stop_total"),
-		"container count of Restart triggers", []string{"state"}, nil)
-
-	nStartDesc := prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, subsystem, "container_start_total"),
-		"container count of Restart triggers", []string{"state"}, nil)
+	nEventsDesc := prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, subsystem, "host_docker_event"),
+		"container count of Restart triggers", []string{"type", "action", "name", "image", "from"}, nil)
 
 	containersWhitelistPattern := regexp.MustCompile(fmt.Sprintf("^(?:%s)$", *unitWhitelist))
 	containersBlacklistPattern := regexp.MustCompile(fmt.Sprintf("^(?:%s)$", *unitBlacklist))
 
 	return &containersCollector{
-		nRestartsDesc:                 	nRestartsDesc,
-		nStopDesc:						nStopDesc,
-		nStartDesc:						nStartDesc,
-		containersWhitelistPattern:     containersWhitelistPattern,
-		containersBlacklistPattern:     containersBlacklistPattern,
+		nEventsDesc:                nEventsDesc,
+		containersWhitelistPattern: containersWhitelistPattern,
+		containersBlacklistPattern: containersBlacklistPattern,
 	}, nil
 }
 
@@ -70,38 +59,36 @@ func (c *containersCollector) Update(ch chan<- prometheus.Metric) error {
 
 	events = filterEvents(events, c.containersWhitelistPattern, c.containersBlacklistPattern)
 
-	c.collectStopMetrics(ch, events)
-	c.collectRestartMetrics(ch, events)
-	c.collectStartMetrics(ch, events)
-	containers, err := c.getAllContainers()
-	if err != nil {
-		return fmt.Errorf("couldn't get containers: %s", err)
-	}
-
-	containers := filterContainers(containers, c.containersWhitelistPattern, c.containersBlacklistPattern)
-
-
+	c.collectEventsMetrics(ch, events)
+	//containers, err := c.getAllContainers()
+	//if err != nil {
+	//	return fmt.Errorf("couldn't get containers: %s", err)
+	//}
+	//containers := filterContainers(containers, c.containersWhitelistPattern, c.containersBlacklistPattern)
 	return nil
 }
 
-func (c *containersCollector) collectStopMetrics(ch chan<- prometheus.Metric, events []eventtypes.Message) {
+func (c *containersCollector) collectEventsMetrics(ch chan<- prometheus.Metric, events []eventtypes.Message) {
+	for _, event := range events {
+		if strings.HasPrefix(event.Actor.Attributes["name"], "k8s_") {
+			fmt.Println("containerName", event.Actor.Attributes["name"])
+			continue
+		}
 
-}
-
-func (c *containersCollector) collectStartMetrics(ch chan<- prometheus.Metric, events []eventtypes.Message) {
-
-}
-
-func (c *containersCollector) collectRestartMetrics(ch chan<- prometheus.Metric, events []eventtypes.Message) {
-
+		if event.Type == "container" {
+			ch <- prometheus.MustNewConstMetric(
+				c.nEventsDesc, prometheus.CounterValue,
+				1, event.Type, event.Action, event.Actor.Attributes["name"], event.Actor.Attributes["image"], event.From)
+		}
+	}
 }
 
 func filterEvents(events []eventtypes.Message, whitelistPattern, blacklistPattern *regexp.Regexp) []eventtypes.Message {
 	filtered := make([]eventtypes.Message, 0, len(events))
 	for _, event := range events {
 		if whitelistPattern.MatchString(event.Actor.Attributes["image"]) &&
-		 !blacklistPattern.MatchString(event.Actor.Attributes["image"]) {
-			log.Debugf("Adding unit: %s", event.ID )
+			!blacklistPattern.MatchString(event.Actor.Attributes["image"]) {
+			log.Debugf("Adding unit: %s", event.ID)
 			filtered = append(filtered, event)
 		} else {
 			log.Debugf("Ignoring unit: %s", event.ID)
@@ -116,7 +103,7 @@ func filterContainers(containers []types.Container, whitelistPattern, blacklistP
 	for _, c := range containers {
 		if whitelistPattern.MatchString(c.Image) &&
 			!blacklistPattern.MatchString(c.Image) {
-			log.Debugf("Adding unit: %s", c.ID )
+			log.Debugf("Adding unit: %s", c.ID)
 			filtered = append(filtered, c)
 		} else {
 			log.Debugf("Ignoring unit: %s", c.ID)
@@ -142,7 +129,7 @@ func DecodeEvents(input io.Reader) ([]eventtypes.Message, error) {
 	return events, nil
 }
 
-func (c *containersCollector) getAllEvents() ([]eventtypes.Message, error){
+func (c *containersCollector) getAllEvents() ([]eventtypes.Message, error) {
 	client, err := dockerapi.NewEnvClient()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get docker connection: %s", err)
@@ -151,9 +138,11 @@ func (c *containersCollector) getAllEvents() ([]eventtypes.Message, error){
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	lastTime := 5* time.Second
+	lastTime := 15 * time.Second
+
 	opts := types.EventsOptions{
-		Since: lastTime.String(),
+		Since: time.Now().Add(-lastTime).Format("2018-03-00T10:01:01"),
+		Until: time.Now().Format("2018-03-00T10:01:01"),
 	}
 
 	response, err := client.Events(ctx, opts)
